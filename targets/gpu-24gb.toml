@@ -1,0 +1,44 @@
+# GPU for ML / AI: 24 GB VRAM or more, NVIDIA (CUDA).
+# 3090, 3090 Ti, 4090, 5090. A 4080 is faster at games but has 16 GB.
+#
+# Title only: GPU descriptions casually mention other cards ("faster than my
+# old 3090") and other hardware ("was in my PC, cable included"), which would
+# otherwise fire the model pattern and the excludes alike.
+
+[[targets]]
+key = "gpu-24gb"
+label = "GPU 24 GB (3090+)"
+match_scope = "title"
+price_policy = "cheapest"
+queries = ["rtx 3090", "rtx 4090", "rtx 5090"]
+patterns = ["\\b(3090|4090|5090)\\b"]
+context = ["rtx", "geforce", "nvidia", "grafikkarte", "gpu", "graphics card", "carte graphique",
+           "zotac", "palit", "gainward", "asus", "msi", "gigabyte", "evga", "inno3d", "pny", "founders"]
+exclude = [
+    # A lesser card that names a 3090 in passing: "RTX 3080 20GB … *Nicht 3090".
+    "\\b(?:3050|3060|3070|3080|4060|4070|4080|5060|5070|5080)\\b",
+    # A laptop 4090 performs like a desktop 3080.
+    "laptop|notebook|\\bmobile\\b|\\bmax-?q\\b|zephyrus|\\bscar\\b|razer blade|legion|alienware|\\bxmg\\b|predator",
+    # The price is for a whole machine. Machines give themselves away by
+    # naming a CPU, RAM, storage or a screen size — cards never do.
+    "\\bpc\\b|rechner|computer|komplett|workstation|\\bsystem\\b|tower|desktop|\\bomen\\b",
+    "\\bram\\b|\\bddr[45]\\b|\\bssd\\b|\\bi[3579]-\\d|ultra [579]\\b|ryzen|\\d{2}[\"”]",
+    # The price is for a part, or for nothing.
+    "nur (?:der )?karton|leerkarton|nur (?:die )?(?:ovp|verpackung)|box only|empty box",
+    # The same empty box in French, Italian and Spanish. "Gaming Box" (an eGPU
+    # enclosure with the card inside) is a card and stays in.
+    "vends (?:ma |la |une )?bo(?:î|i)te|bo(?:î|i)te (?:seule|vide|originale|d'origine)|scatola|\\bcaja\\b",
+    "wasserk(?:ü|ue)hler|waterblock|water block|backplate|\\bek\\b|quantum vector|alphacool|bykski",
+    "zubeh(?:ö|oe)r|accessor",
+    "l(?:ü|ue)fter|\\bfans?\\b|halterung|st(?:ü|ue)tze|bracket|riser|netzteil",
+    # Parts sell as "<part> für RTX 4090". A card listed *with* its adapter or
+    # its box ("inkl. Adapter", "mit Originalkarton") is still a card.
+    "(?:f(?:ü|ue)r|for|kompatibel|compatible)\\s+(?:\\w+\\s+){0,2}(?:3090|4090|5090)",
+]
+# Before calibration, the ceiling for a first alert. Set from live data on
+# 2026-09-26: real used 3090s landed at CHF 1,080-1,340.
+fallback_max = 1150
+# Below this a fixed price is a part, bait or a scam: flagged, never pushed,
+# kept out of calibration. Pricier models need their own floor.
+min_plausible = 400
+plausible_floors = { "4090" = 1000, "5090" = 1500 }

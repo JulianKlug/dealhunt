@@ -1,0 +1,13 @@
+[Unit]
+Description=Run dealhunt every 30 minutes
+
+[Timer]
+OnCalendar=*:0/30
+# Never hit the sites exactly on the half hour, and never all at once.
+RandomizedDelaySec=5min
+# Catch up after the machine was asleep, so an overnight listing still lands.
+Persistent=true
+Unit=dealhunt.service
+
+[Install]
+WantedBy=timers.target

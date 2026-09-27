@@ -1,0 +1,72 @@
+# dealhunt — the buyer's config. Copy to dealhunt.toml and edit.
+#
+# This file is personal: where you live, where you can receive parcels, your
+# sizes, your alert topic. What to hunt lives in the target files listed below,
+# which contain nothing personal and can be shared as they are.
+
+# "observe" collects matches quietly to learn what prices are normal.
+# "alert" pushes anything at or below the learned bar. Start with observe.
+mode = "observe"
+
+# Anyone who knows this string can read your alerts — make it unguessable.
+ntfy_topic = "CHANGE-ME-to-something-random"
+
+# Relative paths resolve against this file's folder.
+db_path = "data/dealhunt.sqlite"
+thresholds_path = "data/thresholds.json"
+
+target_files = [
+    "targets/splitboard-boots.toml",
+    "targets/goggles.toml",
+    "targets/gpu-24gb.toml",
+]
+
+# --- where you are, and what bringing things home costs ---------------------
+# Example: a buyer in Switzerland who can also receive parcels in France.
+# Goods from abroad are carried across the border: VAT on the whole value
+# once over the personal allowance, nothing under it.
+[delivery]
+home_country = "CH"
+currency = "CHF"
+addresses = ["CH", "FR"]
+import_vat_rate = 0.081      # Swiss VAT
+import_allowance = 150       # CHF per person per day, since 1 Jan 2025
+# How sellers say they will ship to one of your addresses, in their language.
+ships_to_phrases = [
+    "versand nach (?:die )?(?:ch|schweiz|frankreich)|(?:schweiz|frankreich) m(?:ö|oe)glich",
+    "in die schweiz|nach frankreich|ships? (?:to )?(?:switzerland|france)",
+]
+
+# Rough is fine: this only decides whether a foreign listing beats a local one.
+[fx]
+CHF = 1.0
+EUR = 0.94
+
+# --- your sizes, per sizing scheme that your targets use --------------------
+# EU 43 is mondopoint 27.5 or 28 depending on the brand: accept both.
+# "275" and "27,5" are the same size — spelling is normalised.
+[sizes.shoe]
+accept = ["43", "27.5", "28"]
+accept_alt = ["9.5", "10"]   # US
+
+# --- sources -----------------------------------------------------------------
+[sources]
+enabled = ["tutti", "ricardo", "kleinanzeigen", "ebay_de", "vinted", "hardware_fr"]
+# Minutes between polls. The timer fires every 30 min; a slower source is
+# skipped until its interval has passed. Aggressive sites block fast pollers.
+min_interval_min = { ricardo = 120, ebay_de = 360, vinted = 120 }
+
+[net]
+# Only if a Cloudflare site needs a specific curl build as fallback. Empty uses PATH.
+curl_binary = ""
+
+[search]
+pages = 2
+# Searches too personal for a shared target file, such as a size.
+extra_queries = ["snowboard boots 43", "snowboardschuhe 43"]
+
+[calibration]
+# Below this many observations a percentile is noise, so the fallback holds.
+min_samples = 8
+percentile = 25              # value targets: a fair price
+cheapest_percentile = 10     # cheapest targets: the bottom of the market

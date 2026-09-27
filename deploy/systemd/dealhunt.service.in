@@ -1,0 +1,17 @@
+[Unit]
+Description=dealhunt — poll marketplaces for good-value items
+After=network-online.target
+Wants=network-online.target
+# A crash is otherwise indistinguishable from a quiet market: no alerts fire
+# and no source-health warning trips, because the process dies before it
+# reaches a source. This makes a dead job loud.
+OnFailure=dealhunt-failure@%n.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=@ROOT@
+# The venv's own entry point: a user service does not inherit your shell's
+# PATH, so a bare `python3` would resolve to the system interpreter.
+ExecStart=@VENV@/bin/dealhunt --config @ROOT@/dealhunt.toml
+# A poll walks every source at a few seconds per request; never let one pile up.
+TimeoutStartSec=25min

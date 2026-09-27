@@ -1,0 +1,92 @@
+# Splitboard softboots: stiff snowboard boots that hold up on a skin track.
+#
+# Sized in the "shoe" scheme — which sizes are acceptable comes from the
+# buyer's config ([sizes.shoe]), never from this file.
+
+[defaults]
+size_scheme = "shoe"
+price_policy = "value"
+# What kind of thing it must be: a boot named like a board or binding is not.
+context = ["boot", "schuh", "stiefel", "chaussur", "scarpon"]
+# Parts sold under a boot's name. Forgiven when the title says the boot comes
+# *with* them ("inkl. Innenschuh").
+accessories = [
+    "\\binnenschuh\\b|\\bchausson|inner ?boots?|liner only",
+    "schn(?:ü|ue)rsenkel|laces|boa[- ]?(?:dial|rad)|nur die sohle",
+]
+# Children's sizes of the same model are a different product.
+title_exclude = ["\\b(?:junior|youth|kids?|kinder|jugend|enfants?|bambin[oa]|ragazz[oi])\\b"]
+queries = [
+    "splitboard boots",
+    "snowboard boots herren",
+    "deeluxe spark",
+    "k2 aspect snowboard",
+    "burton tourist boots",
+    "jones mtb boots",
+    "splitboard",
+]
+
+# --- named models ------------------------------------------------------------
+
+[[targets]]
+key = "deeluxe-spark-xv"
+label = "Deeluxe Spark XV"
+patterns = ["deeluxe.{0,15}spark", "spark ?xv"]
+fallback_max = 260
+
+[[targets]]
+key = "k2-aspect"
+label = "K2 Aspect"
+patterns = ["k2.{0,10}aspect", "aspect ?(pro|boa)"]
+fallback_max = 200
+
+[[targets]]
+key = "burton-tourist"
+label = "Burton Tourist / Photon Step On"
+patterns = ["burton.{0,15}tourist", "burton.{0,15}photon"]
+fallback_max = 240
+
+[[targets]]
+key = "jones-mtb"
+label = "ThirtyTwo Jones MTB"
+patterns = ["(thirtytwo|32).{0,12}(jones|mtb)", "jones ?mtb", "mtb ?lite"]
+fallback_max = 300
+
+[[targets]]
+key = "vans-infuse"
+label = "Vans Infuse"
+patterns = ["vans.{0,12}infuse", "\\binfuse\\b"]
+fallback_max = 220
+
+[[targets]]
+key = "fitwell-backcountry"
+label = "Fitwell Backcountry"
+patterns = ["fitwell"]
+fallback_max = 280
+
+# --- broad nets, last so a named model matches its own target first ---------
+
+[[targets]]
+key = "splitboard-boots-any"
+label = "Splitboard boots (any)"
+patterns = ["split ?board"]
+exclude = ["bindung|binding|\\bpuck|crampon|harscheisen|\\bfelle\\b|steigfell|\\bboard\\b only|heel ?riser|steighilfe"]
+fallback_max = 280
+
+[[targets]]
+key = "stiff-snowboard-boots"
+label = "Stiff snowboard boots"
+# Stiff / freeride models. Soft park boots are deliberately absent: a soft
+# boot is the wrong tool in the backcountry.
+patterns = [
+    "burton.{0,12}(ion|driver ?x|swath|kendo)",
+    "salomon.{0,12}(malamute|echo|synapse)",
+    "ride.{0,12}(insano|lasso|trident|fuse)",
+    "nitro.{0,12}(select|venture|skylab|incline)",
+    "deeluxe.{0,12}(d\\.?n\\.?a|empire|track|id )",
+    "(thirtytwo|32).{0,12}(tm-?2|focus|lashed double)",
+    "k2.{0,12}(thraxis|maysis)",
+    "vans.{0,12}(verse|aura pro)",
+]
+exclude = ["bindung|binding|\\bfelle\\b|kinder|junior"]
+fallback_max = 200

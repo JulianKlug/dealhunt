@@ -1,0 +1,40 @@
+# Ski / snowboard goggles, matched by frame. Lens tint is never stated reliably
+# enough to filter on, so check the lens in the photos.
+
+[defaults]
+price_policy = "value"
+context = ["brille", "goggle", "maske", "mask", "masque"]
+# A bare lens sells under the goggle's name. Forgiven when the title says the
+# goggles come *with* it ("Anon M4 inkl. Ersatzglas").
+accessories = [
+    "ersatz(?:glas|linse|scheibe|visier)|wechselglas|nur (?:das )?(?:glas|linse|band|riemen)",
+    "lens only|strap only|\\bbrillenglas\\b|\\bglas\\b (?:zu|f(?:ü|ue)r)",
+    "(?:é|e)cran de rechange|(?:é|e)cran seul|verre de rechange",
+]
+# A junior frame is a different size of goggle, not a cheaper one.
+title_exclude = ["\\b(?:junior|youth|kids?|kinder|jugend|enfants?|bambin[oa]|ragazz[oi])\\b"]
+queries = ["skibrille", "snowboardbrille", "ski goggles"]
+
+[[targets]]
+key = "anon-m4"
+label = "Anon M4"
+patterns = ["anon.{0,8}m4"]
+fallback_max = 90
+
+[[targets]]
+key = "smith-squad"
+label = "Smith Squad"
+patterns = ["smith.{0,12}squad"]
+fallback_max = 80
+
+[[targets]]
+key = "giro-contour"
+label = "Giro Contour"
+patterns = ["giro.{0,12}contour"]
+fallback_max = 80
+
+[[targets]]
+key = "oakley-line-miner"
+label = "Oakley Line Miner"
+patterns = ["line ?miner"]
+fallback_max = 90

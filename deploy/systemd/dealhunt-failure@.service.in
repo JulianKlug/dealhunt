@@ -1,0 +1,7 @@
+[Unit]
+Description=Push an alert when %i failed
+
+[Service]
+Type=oneshot
+WorkingDirectory=@ROOT@
+ExecStart=@VENV@/bin/dealhunt --config @ROOT@/dealhunt.toml --report-failure %i
