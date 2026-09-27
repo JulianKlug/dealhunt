@@ -52,15 +52,34 @@ Tests pass on imagined data. The live market still contains listings nobody
 imagined. So budget for maintenance, and see [operations.md](operations.md)
 for how to spot problems.
 
-## Where an LLM helps
+## The LLM entry points
 
-Three tasks, each producing a file the backbone reads:
+Maintenance is split into two layers, and only the second involves a model:
 
-1. **Draft a target file** from a description and a sample of real listings.
-2. **Triage false positives**: read the recent pushes, propose `exclude` or
-   `accessories` entries, and add a regression test for each.
-3. **Repair a source** when a site changes: probe it, find the new shape,
-   update the parser, add a test pinned to the real markup.
+```
+  what happened              what to do about it
+  ────────────────────       ─────────────────────────────────────────
+  dealhunt --report     ──►  dealhunt-health         is it working?
+  dealhunt --explain    ──►  dealhunt-triage         a bad or missed push
+  dealhunt --sample     ──►  dealhunt-new-target     a new hunt
+  poll log, journal     ──►  dealhunt-repair-source  a site changed
+  (deterministic, no LLM)    (skills in .claude/skills/)
+```
 
-In every case the result is a reviewed change to a file, with a test. The
-model isn't consulted while the tool runs.
+**The tools on the left** are part of the backbone. They read the store and
+the matcher, change nothing, and are just as useful to a person with no model
+at all.
+
+**The skills on the right** are procedures for a coding agent. Claude Code
+picks them up from `.claude/skills/`. Any other agent can read them, and
+`AGENTS.md` holds the rules they share. Each one starts from the tools'
+facts, and ends in a reviewed file change with a test built from the real
+listing that exposed the problem.
+
+The health pushes name the entry point to reach for:
+"returned nothing 2x" points to `dealhunt-repair-source`, and a crash points
+to `dealhunt-health`.
+
+What they deliberately don't do: run on a schedule, or change anything on
+their own. A model is consulted when a person asks, and its work is a diff
+that a person reviews.

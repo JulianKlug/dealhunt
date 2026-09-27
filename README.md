@@ -73,8 +73,20 @@ Adding one: [docs/sources.md](docs/sources.md).
 ## Keeping it running
 
 Sites change, and the failures are often silent: a malformed search URL can
-return HTTP 200 with the wrong results. [docs/operations.md](docs/operations.md)
-lists what has broken so far and how each was noticed.
+return HTTP 200 with the wrong results. Three read-only commands give you the
+facts:
+
+```bash
+.venv/bin/dealhunt --report                 # polls, blocks, targets, pushes, cheapest matches
+.venv/bin/dealhunt --explain "TITLE"        # why a listing matched or was dropped
+.venv/bin/dealhunt --sample --source tutti --query "rtx 3090"   # real listings as JSON
+```
+
+With a coding agent, four skills in `.claude/skills/` take it from there:
+`dealhunt-health`, `dealhunt-triage`, `dealhunt-new-target` and
+`dealhunt-repair-source`. Their shared rules are in [AGENTS.md](AGENTS.md).
+[docs/operations.md](docs/operations.md) lists what has broken so far, and how
+each failure was noticed.
 
 ## Layout
 
@@ -93,6 +105,7 @@ src/dealhunt/
   notify/ntfy.py          push notifications
 deploy/                   installer + systemd templates
 docs/                     approach · targets · sources · operations
+AGENTS.md, .claude/skills/  LLM maintenance: rules + 4 entry points
 tests/                    run against the shipped example targets
 ```
 
