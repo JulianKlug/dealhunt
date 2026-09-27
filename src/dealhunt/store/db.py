@@ -9,11 +9,11 @@ Two jobs:
 from __future__ import annotations
 
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import List, Optional
 
-from dealhunt.models import Event, Match
+from dealhunt.models import Event, Match, PollRecord, PollState
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS listings (
@@ -32,6 +32,17 @@ CREATE TABLE IF NOT EXISTS listings (
     notified_at TEXT
 );
 CREATE INDEX IF NOT EXISTS listings_by_target ON listings (target_key, landed);
+
+-- Every poll, not just the last: a source that keeps returning the same
+-- count, or blocks a little more each day, only shows up over time.
+CREATE TABLE IF NOT EXISTS poll_log (
+    at      TEXT NOT NULL,
+    source  TEXT NOT NULL,
+    count   INTEGER NOT NULL,
+    state   TEXT NOT NULL,
+    error   TEXT
+);
+CREATE INDEX IF NOT EXISTS poll_log_by_time ON poll_log (at);
 
 CREATE TABLE IF NOT EXISTS source_health (
     source     TEXT PRIMARY KEY,
@@ -129,8 +140,18 @@ class Store:
 
         return [row["landed"] for row in rows]
 
-    def record_health(self, source: str, count: int) -> int:
-        """Track consecutive empty polls; a source that dies goes quiet, not loud."""
+    def record_health(
+        self, source: str, count: int, state: PollState = PollState.OK, error: Optional[str] = None
+    ) -> int:
+        """Log the poll, and track consecutive empty ones.
+
+        A source that dies goes quiet, not loud, so the streak is the alarm.
+        """
+        self._db.execute(
+            "INSERT INTO poll_log (at, source, count, state, error) VALUES (?, ?, ?, ?, ?)",
+            (_now(), source, count, state.value, error),
+        )
+
         row = self._db.execute(
             "SELECT empty_runs FROM source_health WHERE source = ?", (source,)
         ).fetchone()
@@ -148,6 +169,38 @@ class Store:
         self._db.commit()
 
         return empty_runs
+
+    def poll_history(self, days: int) -> List[PollRecord]:
+        """Every poll in the last `days`, oldest first."""
+        since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat(timespec="seconds")
+        rows = self._db.execute(
+            "SELECT at, source, count, state, error FROM poll_log WHERE at >= ? ORDER BY at, rowid",
+            (since,),
+        ).fetchall()
+
+        return [PollRecord(r["at"], r["source"], r["count"], PollState(r["state"]), r["error"]) for r in rows]
+
+    def match_counts(self) -> List[sqlite3.Row]:
+        """Per target: matches stored, pushed, and the price range seen."""
+        return self._db.execute(
+            "SELECT target_key, COUNT(*) AS n, SUM(notified_at IS NOT NULL) AS pushed, "
+            "MIN(landed) AS low, MAX(landed) AS high FROM listings GROUP BY target_key ORDER BY target_key"
+        ).fetchall()
+
+    def recent_pushes(self, limit: int) -> List[sqlite3.Row]:
+        return self._db.execute(
+            "SELECT notified_at, target_key, landed, title, url FROM listings "
+            "WHERE notified_at IS NOT NULL ORDER BY notified_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+
+    def cheapest(self, target_key: str, limit: int) -> List[sqlite3.Row]:
+        """The cheapest matches: where parts, bait and scams collect."""
+        return self._db.execute(
+            "SELECT landed, price_kind, title, url FROM listings "
+            "WHERE target_key = ? AND landed IS NOT NULL ORDER BY landed LIMIT ?",
+            (target_key, limit),
+        ).fetchall()
 
     def last_run(self, source: str) -> Optional[datetime]:
         """When a source was last actually polled, or None if never."""

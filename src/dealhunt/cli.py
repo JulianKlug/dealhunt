@@ -5,16 +5,24 @@ One pass per invocation; a systemd timer supplies the repetition. Orchestration
 only: it walks sources, hands each listing to the matcher, records the verdict
 and decides whether to push. It knows nothing about HTML, GraphQL or SQL.
 
-    python3 run.py                     one poll, honouring config mode
-    python3 run.py --dry-run           poll and print, push nothing, write nothing
-    python3 run.py --source tutti      restrict to one source
-    python3 run.py --calibrate         set alert thresholds from observed prices
-    python3 run.py --notify-test       prove the ntfy topic reaches your phone
+    dealhunt                     one poll, honouring config mode
+    dealhunt --dry-run           poll and print, push nothing, write nothing
+    dealhunt --source tutti      restrict to one source
+    dealhunt --calibrate         set alert thresholds from observed prices
+    dealhunt --notify-test       prove the ntfy topic reaches your phone
+
+Maintenance (read-only; what the LLM skills in .claude/skills start from):
+
+    dealhunt --report                  poll history, targets, pushes, cheapest matches
+    dealhunt --explain "TITLE"         why a listing matched or was dropped
+    dealhunt --sample --source tutti --query "rtx 3090"
+                                       real listings as JSON: fixtures, new targets
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import statistics
 import sys
@@ -24,9 +32,11 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from dealhunt import config
+from dealhunt import config, report
 from dealhunt.matching.rules import evaluate
-from dealhunt.models import Event, Match, Mode, Outcome, PriceKind, PricePolicy, SourceResult
+from dealhunt.models import (
+    Event, Match, Mode, Outcome, PollState, PriceKind, PricePolicy, RawListing, SearchQuery, SourceResult,
+)
 from dealhunt.net.client import HttpClient, Transport
 from dealhunt.notify.ntfy import Notifier
 from dealhunt.sources import ebay_de, hardware_fr, kleinanzeigen, ricardo, tutti, vinted
@@ -84,11 +94,21 @@ def main(argv: Optional[List[str]] = None) -> int:
         notifier.failure(args.report_failure)
         return 0
 
+    if args.explain:
+        return _explain(cfg, args)
+
+    if args.sample:
+        return _sample(cfg, args)
+
     store = Store(cfg.db_path)
 
     try:
         if args.calibrate:
             return _calibrate(cfg, store)
+
+        if args.report:
+            print(report.render(store, cfg, args.days))
+            return 0
 
         return _poll(cfg, store, notifier, args)
     finally:
@@ -268,7 +288,8 @@ def _percentile(sorted_values: List[float], percentile: int) -> float:
 
 
 def _check_health(store: Store, notifier: Notifier, result: SourceResult) -> None:
-    empty_runs = store.record_health(result.source, len(result.listings))
+    state = PollState.BLOCKED if result.blocked else PollState.OK
+    empty_runs = store.record_health(result.source, len(result.listings), state, result.error)
 
     if empty_runs == EMPTY_RUNS_BEFORE_WARNING:
         notifier.health(result.source, empty_runs)
@@ -338,6 +359,40 @@ def _report(outcomes: Counter, alerted: int, mode: Mode) -> None:
         log.info("dropped: %s", dropped)
 
 
+def _explain(cfg, args) -> int:
+    """Walk one listing through the matcher and print every decision."""
+    raw = RawListing(
+        source="explain", listing_id="-", title=args.explain, url="-",
+        country=args.country.upper(), description=args.description,
+        price=args.price, currency=cfg.currency,
+    )
+    trace: List[str] = []
+    evaluate(raw, cfg.targets, cfg.rules, trace=trace)
+
+    print("\n".join(trace))
+    return 0
+
+
+def _sample(cfg, args) -> int:
+    """Fetch one query from one source and print the raw listings as JSON."""
+    if not args.source or not args.query:
+        log.error("--sample needs --source and --query")
+        return 2
+
+    module = SOURCES[args.source]
+    client = HttpClient(module.TRANSPORT, cfg.curl_binary)
+
+    try:
+        result = module.fetch(client, [SearchQuery(text=args.query, pages=1)])
+    finally:
+        client.close()
+
+    listings = [dict(vars(l), price_kind=l.price_kind.value) for l in result.listings]
+    print(json.dumps({"source": args.source, "query": args.query, "error": result.error,
+                      "blocked": result.blocked, "listings": listings}, ensure_ascii=False, indent=2))
+    return 0
+
+
 def _parse_args(argv: List[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG,
@@ -348,6 +403,15 @@ def _parse_args(argv: List[str]) -> argparse.Namespace:
     parser.add_argument("--notify-test", action="store_true", help="send one test push")
     parser.add_argument("--report-failure", default="", metavar="UNIT",
                         help="push a crash alert; invoked by the OnFailure unit")
+    maintenance = parser.add_argument_group("maintenance (read-only)")
+    maintenance.add_argument("--report", action="store_true", help="health and results report, as Markdown")
+    maintenance.add_argument("--days", type=int, default=7, help="report window (default 7)")
+    maintenance.add_argument("--explain", metavar="TITLE", default="", help="trace one listing through the matcher")
+    maintenance.add_argument("--description", default="", help="--explain: the listing body")
+    maintenance.add_argument("--country", default="CH", help="--explain: where it ships from (default CH)")
+    maintenance.add_argument("--price", type=float, default=None, help="--explain: its price, in your currency")
+    maintenance.add_argument("--sample", action="store_true", help="print raw listings for --source/--query as JSON")
+    maintenance.add_argument("--query", default="", help="--sample: the search term")
     parser.add_argument("-v", "--verbose", action="store_true")
 
     return parser.parse_args(argv)

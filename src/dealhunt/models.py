@@ -85,6 +85,13 @@ class Outcome(Enum):
     BROKEN = "broken"
 
 
+class PollState(Enum):
+    """How one poll of one source ended."""
+
+    OK = "ok"
+    BLOCKED = "blocked"     # the site refused us (403/429)
+
+
 class Event(Enum):
     """What the store saw when it wrote a match — drives whether we push."""
 
@@ -227,6 +234,21 @@ class Match:
             out.append("implausibly cheap — verify the seller before paying")
 
         return out
+
+
+@dataclass(frozen=True)
+class PollRecord:
+    """One poll of one source, as the store remembers it."""
+
+    at: str
+    source: str
+    count: int
+    state: PollState
+    error: Optional[str]
+
+    @property
+    def blocked(self) -> bool:
+        return self.state is PollState.BLOCKED
 
 
 @dataclass

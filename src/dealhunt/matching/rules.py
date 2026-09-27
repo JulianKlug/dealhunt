@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Dict, FrozenSet, List, Optional, Sequence, Tuple
+from typing import Callable, Dict, FrozenSet, List, Optional, Sequence, Tuple
 
 from dealhunt.matching.sizes import SCHEMES
 from dealhunt.models import (
@@ -99,24 +99,35 @@ class RuleSet:
 
 
 def evaluate(
-    raw: RawListing, targets: Sequence[Target], rules: RuleSet
+    raw: RawListing, targets: Sequence[Target], rules: RuleSet, trace: Optional[List[str]] = None
 ) -> Tuple[Outcome, Optional[Match]]:
-    """Judge one listing. Returns why it was dropped, or the Match it became."""
+    """Judge one listing. Returns why it was dropped, or the Match it became.
+
+    Pass a list as `trace` to have every decision appended to it, in order;
+    `dealhunt --explain` prints it. Tracing never changes the verdict.
+    """
+    note = trace.append if trace is not None else _discard
     text = raw.haystack
 
-    if _WANTED_AD_RE.search(raw.title):
+    wanted = _WANTED_AD_RE.search(raw.title)
+    if wanted:
+        note(f"WANTED_AD — the title says {wanted.group(0)!r}")
         return Outcome.WANTED_AD, None
 
-    target, dropped_as = find_target(raw, targets)
+    target, dropped_as = find_target(raw, targets, note)
     if target is None:
+        note(f"{dropped_as.name} — no target accepted it")
         return dropped_as, None
 
     condition = condition_of(text)
     if condition is ConditionVerdict.BROKEN:
+        note(f"BROKEN — the text says {_BROKEN_RE.search(text).group(0)!r}")
         return Outcome.BROKEN, None
 
     size = _size_for(target, text, rules)
+    note(f"size: {size.value}" + (f" (scheme {target.size_scheme!r})" if target.size_scheme else " (unsized item)"))
     if size is SizeVerdict.CONFLICT:
+        note("WRONG_SIZE — a size is stated, and it is not one you take")
         return Outcome.WRONG_SIZE, None
 
     match = Match(
@@ -129,37 +140,51 @@ def evaluate(
         addresses=rules.delivery.label,
     )
 
+    note(f"MATCH {target.key} — landed {match.landed}, flags {match.flags}")
     return Outcome.MATCH, match
 
 
-def find_target(raw: RawListing, targets: Sequence[Target]) -> Tuple[Optional[Target], Outcome]:
+def find_target(
+    raw: RawListing, targets: Sequence[Target], note: Callable[[str], None] = None
+) -> Tuple[Optional[Target], Outcome]:
     """First target the listing is genuinely an instance of.
 
     Returns the reason for the drop when there is none: a spare part named
     after a target reports ACCESSORY, anything else NO_TARGET.
     """
+    note = note or _discard
     dropped_as = Outcome.NO_TARGET
 
     for target in targets:
         text = raw.title if target.match_scope is TextScope.TITLE else raw.haystack
 
-        if not _any_match(target.patterns, text):
+        pattern = _first_match(target.patterns, text)
+        if pattern is None:
             continue
 
-        if target.context and not _any_match(target.context, text):
+        note(f"{target.key}: pattern '{pattern}' hit ({target.match_scope.value} text)")
+
+        if target.context and _first_match(target.context, text) is None:
+            note(f"{target.key}: rejected — no context word ({', '.join(target.context)})")
             continue
 
-        if target.exclude and _any_match(target.exclude, text):
+        excluded = _first_match(target.exclude, text)
+        if excluded:
+            note(f"{target.key}: rejected — exclude '{excluded}' hit")
             continue
 
-        if target.title_exclude and _any_match(target.title_exclude, raw.title):
+        title_excluded = _first_match(target.title_exclude, raw.title)
+        if title_excluded:
+            note(f"{target.key}: rejected — title_exclude '{title_excluded}' hit")
             dropped_as = Outcome.ACCESSORY
             continue
 
         if is_accessory(raw.title, target.accessories):
+            note(f"{target.key}: rejected — the title names a spare part, with no 'inkl./mit/+'")
             dropped_as = Outcome.ACCESSORY
             continue
 
+        note(f"{target.key}: accepted")
         return target, Outcome.MATCH
 
     return None, dropped_as
@@ -233,4 +258,13 @@ def _size_for(target: Target, text: str, rules: RuleSet) -> SizeVerdict:
 
 
 def _any_match(patterns: Sequence[str], text: str) -> bool:
-    return any(re.search(p, text, re.I) for p in patterns)
+    return _first_match(patterns, text) is not None
+
+
+def _first_match(patterns: Sequence[str], text: str) -> Optional[str]:
+    """The first pattern that hits, so a trace can say which one."""
+    return next((p for p in patterns if re.search(p, text, re.I)), None)
+
+
+def _discard(_: str) -> None:
+    """A trace that goes nowhere: the default, and free."""

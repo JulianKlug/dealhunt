@@ -39,8 +39,9 @@ class Notifier:
     def health(self, source: str, empty_runs: int) -> None:
         self._post(
             f"dealhunt: {source} returned nothing {empty_runs}x",
-            "The site layout or its bot protection probably changed. "
-            "Run with --source " + source + " --dry-run to see what it returns.",
+            "The site layout or its bot protection probably changed.\n"
+            "See: dealhunt --report\n"
+            "Fix with an LLM: the dealhunt-repair-source skill (" + source + ").",
             PRIORITY_HEALTH,
             click=None,
             tags="warning",
@@ -66,7 +67,8 @@ class Notifier:
         self._post(
             f"dealhunt CRASHED: {unit}",
             "The poll is not running. Diagnose with:\n"
-            "journalctl --user -u dealhunt.service -n 40",
+            "journalctl --user -u dealhunt.service -n 40\n"
+            "Fix with an LLM: the dealhunt-health skill.",
             PRIORITY_URGENT,
             click=None,
             tags="rotating_light",
