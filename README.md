@@ -2,7 +2,7 @@
 
 Watches second-hand marketplaces for items you describe, and pushes the good
 deals to your phone. Anything that can be described by its name and a fair
-price: boots in your size, a 24 GB GPU, a specific camera lens.
+price: boots in your size, an RTX 5090, a specific camera lens.
 
 It runs on a timer as plain, deterministic Python: no model is involved in the
 running tool. An LLM is useful for writing target files and for repairing a

@@ -85,9 +85,9 @@ def test_explain_names_the_pattern_that_matched():
 
 def test_explain_names_the_exclude_that_dropped_it():
     trace = []
-    evaluate(listing("Gaming Laptop RTX 4090 i9", price=1500.0), EXAMPLE.targets, RULES, trace=trace)
+    evaluate(listing("Gaming Laptop RTX 5090 i9", price=4000.0), EXAMPLE.targets, RULES, trace=trace)
 
-    assert any("gpu-24gb" in line and "exclude" in line and "laptop" in line for line in trace)
+    assert any("gpu-5090" in line and "exclude" in line and "laptop" in line for line in trace)
 
 
 def test_explain_reports_a_size_conflict():

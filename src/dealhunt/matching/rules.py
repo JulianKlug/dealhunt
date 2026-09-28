@@ -61,7 +61,9 @@ _WANTED_AD_RE = re.compile(
     # "suche" and "gesucht" anywhere: kleinanzeigen titles often lead with a
     # place or a date ("70825 Korntal … suche RTX 4090"), or end with it
     # ("RTX 3090 gesucht").
-    r"|\bsuche\b|\bgesucht\b|\bcherche\b|\brecherche\b|\[ach\]",
+    r"|\bsuche\b|\bgesucht\b|\bcherche\b|\brecherche\b|\[ach\]"
+    # Dealers buying: "Wir kaufen …", "Ankauf RTX 5090".
+    r"|\bwir kaufen\b|\bankauf\b",
     re.I,
 )
 

@@ -81,7 +81,7 @@ def test_vinted_search_url():
 # --- hardware.fr -----------------------------------------------------------
 
 HFR_HTML = """
-<a href="/hfr/AchatsVentes/Hardware/rtx-3090-fe_sujet_1_1.htm" class="cCatTopic" title="x">[VDS - 75] RTX 3090 FE 24Go 750€</a>
+<a href="/hfr/AchatsVentes/Hardware/rtx-5090-fe_sujet_1_1.htm" class="cCatTopic" title="x">[VDS - 75] RTX 5090 FE 32Go 3 950€</a>
 <a href="/hfr/AchatsVentes/Hardware/ach-gpu_sujet_2_1.htm" class="cCatTopic" title="x">[ACH] RTX 3090 max 600 euros</a>
 <a href="/hfr/AchatsVentes/Hardware/ech_sujet_3_1.htm" class="cCatTopic" title="x">[ECH] 4090 contre 2x3090</a>
 <a href="/hfr/AchatsVentes/Hardware/vds-4090_sujet_4_1.htm" class="cCatTopic" title="x">[VDS] Gigabyte RTX 4090 Gaming OC - 1 450 euros</a>
@@ -99,7 +99,7 @@ def test_hardware_fr_keeps_only_sale_topics():
 def test_hardware_fr_reads_the_price_from_the_title():
     by_title = {l.title: l for l in hardware_fr.parse(HFR_HTML)}
 
-    assert by_title["[VDS - 75] RTX 3090 FE 24Go 750€"].price == 750.0
+    assert by_title["[VDS - 75] RTX 5090 FE 32Go 3 950€"].price == 3950.0
     assert by_title["[VDS] Gigabyte RTX 4090 Gaming OC - 1 450 euros"].price == 1450.0
     assert by_title["[VDS] kit DDR4 2 x 16 go Gskill"].price is None
 
@@ -115,7 +115,7 @@ def test_a_hardware_fr_card_matches_the_gpu_target():
     first = hardware_fr.parse(HFR_HTML)[0]
     outcome, match = evaluate(first, CFG.targets, CFG.rules)
 
-    assert outcome is Outcome.MATCH and match.target.key == "gpu-24gb"
+    assert outcome is Outcome.MATCH and match.target.key == "gpu-5090"
 
 
 # --- delivery via France, carried into Switzerland -------------------------
@@ -199,15 +199,15 @@ def test_vinted_relative_links_become_absolute():
 
 @pytest.mark.parametrize("title", [
     "Je vends ma boîte carte graphique 5090",
-    "Scatola originale rtx 4090",
+    "Scatola originale rtx 5090",
 ])
 def test_an_empty_card_box_is_not_a_card(title):
     _, match = evaluate(listing(title, price=25.0), CFG.targets, CFG.rules)
 
-    assert match is None or match.target.key != "gpu-24gb"
+    assert match is None or not match.target.key.startswith("gpu-")
 
 
 def test_an_egpu_box_with_a_card_inside_still_counts():
-    _, match = evaluate(listing("Aorus RTX 3090 Gaming Box – 24GB", price=1400.0), CFG.targets, CFG.rules)
+    _, match = evaluate(listing("Aorus RTX 5090 Gaming Box – 32GB", price=4400.0), CFG.targets, CFG.rules)
 
-    assert match is not None and match.target.key == "gpu-24gb"
+    assert match is not None and match.target.key == "gpu-5090"

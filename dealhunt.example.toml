@@ -18,7 +18,7 @@ thresholds_path = "data/thresholds.json"
 target_files = [
     "targets/splitboard-boots.toml",
     "targets/goggles.toml",
-    "targets/gpu-24gb.toml",
+    "targets/gpu-5090-6000.toml",
 ]
 
 # --- where you are, and what bringing things home costs ---------------------
